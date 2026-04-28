@@ -1,41 +1,13 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-// ✅ MONGODB ATLAS CONNECTION (Permanent Cloud Database)
-const MONGODB_URI = "mongodb+srv://sivapreetham14_db_user:tKiJ77B91o7wIFb6@cluster0.8zida3i.mongodb.net/velmora_hotel";
+// In-memory storage (no MongoDB needed)
+let bookings = [];
 
-// Connect to MongoDB Atlas
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ Connected to MongoDB Atlas!'))
-  .catch(err => console.log('❌ MongoDB Error:', err.message));
-
-// Booking Schema (Database Structure)
-const bookingSchema = new mongoose.Schema({
-    guestName: { type: String, required: true },
-    email: { type: String, required: true },
-    phone: { type: String },
-    roomName: { type: String, required: true },
-    roomId: { type: Number },
-    pricePerNight: { type: Number, required: true },
-    checkinDate: { type: String, required: true },
-    checkoutDate: { type: String, required: true },
-    specialRequests: { type: String },
-    totalPrice: { type: Number },
-    bookingRef: { type: String, unique: true },
-    status: { type: String, default: 'confirmed' },
-    createdAt: { type: Date, default: Date.now }
-});
-
-const Booking = mongoose.model('Booking', bookingSchema);
-
-// ============ API ENDPOINTS ============
-
-// 1. GET all rooms
+// ROOMS API
 app.get('/api/rooms', (req, res) => {
     const rooms = [
         { id: 1, name: "Grand Deluxe King", priceINR: 24131, image: "https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg", amenities: "KING BED | 55 INCH TV | RAIN SHOWER | MINI BAR" },
@@ -45,25 +17,34 @@ app.get('/api/rooms', (req, res) => {
     res.json(rooms);
 });
 
-// 2. POST create a new booking (Saves to MongoDB Atlas)
-app.post('/api/bookings', async (req, res) => {
+// BOOKING API
+app.post('/api/bookings', (req, res) => {
     try {
-        const { guestName, email, phone, roomName, roomId, pricePerNight, checkinDate, checkoutDate, specialRequests } = req.body;
+        const { guestName, email, phone, roomName, pricePerNight, checkinDate, checkoutDate, specialRequests } = req.body;
         
-        // Calculate nights and total price
         const checkin = new Date(checkinDate);
         const checkout = new Date(checkoutDate);
         const nights = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24));
         const totalPrice = nights * pricePerNight;
         const bookingRef = 'VEL' + Date.now() + Math.floor(Math.random() * 1000);
         
-        // Save to MongoDB Atlas
-        const booking = new Booking({
-            guestName, email, phone, roomName, roomId, pricePerNight,
-            checkinDate, checkoutDate, specialRequests, totalPrice, bookingRef
-        });
+        const newBooking = {
+            id: bookings.length + 1,
+            guestName,
+            email,
+            phone,
+            roomName,
+            pricePerNight,
+            checkinDate,
+            checkoutDate,
+            specialRequests,
+            totalPrice,
+            bookingRef,
+            createdAt: new Date().toISOString(),
+            status: 'confirmed'
+        };
         
-        await booking.save();
+        bookings.push(newBooking);
         
         res.json({ 
             success: true, 
@@ -74,60 +55,24 @@ app.post('/api/bookings', async (req, res) => {
         });
         
     } catch(error) {
-        console.error('Booking error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
-// 3. GET all bookings (View all bookings from database)
-app.get('/api/bookings', async (req, res) => {
-    try {
-        const bookings = await Booking.find().sort({ createdAt: -1 });
-        res.json({ success: true, count: bookings.length, bookings: bookings });
-    } catch(error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
+// GET all bookings
+app.get('/api/bookings', (req, res) => {
+    res.json({ success: true, count: bookings.length, bookings: bookings });
 });
 
-// 4. GET bookings by email
-app.get('/api/bookings/email/:email', async (req, res) => {
-    try {
-        const bookings = await Booking.find({ email: req.params.email });
-        res.json({ success: true, count: bookings.length, bookings: bookings });
-    } catch(error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// 5. GET test endpoint
+// TEST endpoint
 app.get('/api/test', (req, res) => {
     res.json({ 
-        message: '✅ Velmora Hotel Backend is LIVE on Render!',
-        database: mongoose.connection.readyState === 1 ? 'Connected to MongoDB Atlas' : 'Disconnected',
+        message: '✅ Velmora Hotel Backend is LIVE!',
         status: 'active',
-        timestamp: new Date().toISOString()
+        bookingsCount: bookings.length
     });
 });
 
-// 6. GET statistics
-app.get('/api/stats', async (req, res) => {
-    try {
-        const totalBookings = await Booking.countDocuments();
-        const confirmedBookings = await Booking.countDocuments({ status: 'confirmed' });
-        
-        res.json({
-            success: true,
-            stats: {
-                totalBookings: totalBookings,
-                confirmedBookings: confirmedBookings
-            }
-        });
-    } catch(error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log('═════════════════════════════════════════════════');
