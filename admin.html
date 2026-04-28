@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Velmora Hotel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%);
+            color: white;
+            padding: 40px;
+            min-height: 100vh;
+        }
+        
+        h1 {
+            color: #D4AF37;
+            font-size: 32px;
+            margin-bottom: 10px;
+            border-left: 4px solid #D4AF37;
+            padding-left: 20px;
+        }
+        
+        .subtitle {
+            color: #888;
+            margin-bottom: 30px;
+            margin-left: 24px;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-card {
+            background: #1A1A1A;
+            padding: 20px 30px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 48px;
+            font-weight: bold;
+            color: #D4AF37;
+        }
+        
+        .stat-label {
+            color: #888;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: #D4AF37;
+            color: #0A0A0A;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        
+        button:hover {
+            background: #C5A028;
+            transform: translateY(-2px);
+        }
+        
+        .download-btn {
+            background: #2E7D32;
+            color: white;
+        }
+        
+        .download-btn:hover {
+            background: #1B5E20;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1A1A1A;
+            font-size: 14px;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        
+        th {
+            background: #D4AF37;
+            color: #0A0A0A;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+        }
+        
+        tr:hover {
+            background: #252525;
+        }
+        
+        .badge {
+            background: #4CAF50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #D4AF37;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        
+        .refresh-info {
+            color: #666;
+            font-size: 12px;
+            margin-left: auto;
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 20px; }
+            table { font-size: 11px; }
+            th, td { padding: 8px; }
+            .stat-number { font-size: 32px; }
+        }
+    </style>
+</head>
+<body>
+    <h1>VELMORA HOTEL</h1>
+    <div class="subtitle">Admin Dashboard - Customer Booking Management</div>
+    
+    <div class="stats" id="stats">
+        <div class="stat-card">
+            <div class="stat-number" id="totalBookings">-</div>
+            <div class="stat-label">Total Bookings</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="totalRevenue">-</div>
+            <div class="stat-label">Total Revenue (₹)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="lastUpdate">-</div>
+            <div class="stat-label">Last Update</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button class="refresh-btn" onclick="loadData()">Refresh Data</button>
+        <button class="download-btn" onclick="downloadData()">Download as JSON</button>
+        <div class="refresh-info">Auto-refreshes every 30 seconds</div>
+    </div>
+    
+    <div class="table-container" id="data">
+        <div class="loading">Loading customer data from server...</div>
+    </div>
+    
+    <script>
+        const API_URL = 'https://velmora-hotel-backend.onrender.com';
+        
+        async function loadData() {
+            const dataDiv = document.getElementById('data');
+            dataDiv.innerHTML = '<div class="loading">📡 Fetching customer data...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/bookings`);
+                const result = await response.json();
+                
+                if (result.bookings && result.bookings.length > 0) {
+                    const bookings = result.bookings;
+                    
+                    // Update Stats
+                    document.getElementById('totalBookings').innerHTML = bookings.length;
+                    
+                    const totalRevenue = bookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+                    document.getElementById('totalRevenue').innerHTML = '₹' + totalRevenue.toLocaleString('en-IN');
+                    document.getElementById('lastUpdate').innerHTML = new Date().toLocaleTimeString();
+                    
+                    // Create Table
+                    let html = '<table>';
+                    html += `<tr>
+                        <th>#</th>
+                        <th>Booking Ref</th>
+                        <th>Guest Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Room</th>
+                        <th>Nights</th>
+                        <th>Check In</th>
+                        <th>Check Out</th>
+                        <th>Total (₹)</th>
+                        <th>Booked On</th>
+                        <th>Status</th>
+                    </tr>`;
+                    
+                    bookings.forEach((booking, index) => {
+                        const bookedDate = new Date(booking.createdAt);
+                        const formattedDate = bookedDate.toLocaleDateString() + ' ' + bookedDate.toLocaleTimeString();
+                        
+                        html += `<tr>
+                            <td>${index + 1}</td>
+                            <td><strong style="color:#D4AF37">${booking.bookingRef || 'N/A'}</strong></td>
+                            <td>${booking.guestName}</td>
+                            <td>${booking.email}</td>
+                            <td>${booking.phone || '-'}</td>
+                            <td>${booking.roomName}</td>
+                            <td>${booking.nights || '-'}</td>
+                            <td>${booking.checkinDate}</td>
+                            <td>${booking.checkoutDate}</td>
+                            <td><strong>₹${(booking.totalPrice || 0).toLocaleString('en-IN')}</strong></td>
+                            <td>${formattedDate}</td>
+                            <td><span class="badge">${booking.status || 'confirmed'}</span></td>
+                        </tr>`;
+                    });
+                    
+                    html += '</table>';
+                    dataDiv.innerHTML = html;
+                    
+                } else {
+                    dataDiv.innerHTML = `
+                        <div class="no-data">
+                             No bookings yet.<br><br>
+                             Go to <strong>https://hotel-velmora.netlify.app</strong> and make a reservation.<br><br>
+                             Bookings will appear here automatically once customers book rooms.
+                        </div>
+                    `;
+                    document.getElementById('totalBookings').innerHTML = '0';
+                    document.getElementById('totalRevenue').innerHTML = '₹0';
+                }
+                
+            } catch(error) {
+                dataDiv.innerHTML = `<div class="no-data"> Error connecting to server: ${error.message}<br><br>Make sure the backend is running at ${API_URL}</div>`;
+                console.error('Error:', error);
+            }
+        }
+        
+        function downloadData() {
+            fetch(`${API_URL}/api/download`)
+                .then(res => res.json())
+                .then(data => {
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `velmora-bookings-${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    alert('Data downloaded successfully!');
+                })
+                .catch(err => alert('Error downloading data: ' + err.message));
+        }
+        
+        // Initial load
+        loadData();
+        
+        // Auto refresh every 30 seconds
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>
